@@ -16,7 +16,7 @@ volatile bool buttonReady = false;
 
 unsigned long switch_lastMillis = 0;
 const unsigned long switch_interval = 3000; //check switch every 3 seconds.
-const unsigned long debounce_interval = 300;
+// const unsigned long debounce_interval = 300;
 
 const unsigned long buttonActivationDelay = 100; //delay to allow a call to ISR to clear out queued behavior.
 
@@ -31,7 +31,7 @@ void setup() {
     #endif
 
     pinMode(SWITCH_PIN, INPUT_PULLUP);
-    pinMode(BUTTON_PIN, INPUT); //the button already has a pullup resistor. Not sure how much difference this will make. 
+    pinMode(BUTTON_PIN, INPUT); //the button already has a pullup resistor. Not sure how much difference this will make.
 }
 
 void loop() {
@@ -75,9 +75,9 @@ void loop() {
                 Serial.println("switch activated");
                 #endif
             } else if (buttonActivating) {
-                if (currentMillis - buttonActivationStartTime > buttonActivationDelay && !buttonReady) {
-                    buttonReady = true;
+                if ((currentMillis - buttonActivationStartTime > buttonActivationDelay) && !buttonReady) {
                     buttonActivating = false;
+                    buttonReady = true;
                 }
             }
         }
@@ -97,11 +97,11 @@ void send_deviceSwitch() {
 #endif
 
 
-volatile unsigned long prevInterruptTime = 0;
+// volatile unsigned long prevInterruptTime = 0;
 /*
 Interupt handler.
 I think what I will need to do is immediately deactivate the ISR, and reactivate it after a hundred millis or so
-in the main loop.
+in the main loop. that might be problematic.
 
 scratch that, I think the problem might be that I forgot to things as volatile.
 
@@ -110,12 +110,20 @@ The interrupt on that pin may still be queueing though. Yep, interrupt is still 
 void button_interrupt() {
     //millis does not advance in the interupt handler, but should still be able to be called.
     //have to debounce the input.
-    unsigned long interruptTime = millis();
-    if (interruptTime - prevInterruptTime > debounce_interval) {
+    // unsigned long interruptTime = millis();
+    // if (interruptTime - prevInterruptTime > debounce_interval) {
+    // I will still filter out the queued interrupt.
+    if (buttonReady) {
         #if SERIAL == TRUE
         Serial.println("Interupt handler called");
         Serial.println(email);
         #endif
-        prevInterruptTime = interruptTime;
+    } else {
+        #if SERIAl == TRUE
+        Serial.println("interrupt handler called, button not ready.");
+        #endif
     }
+
+        // prevInterruptTime = interruptTime;
+    // }
 }
