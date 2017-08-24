@@ -31,7 +31,7 @@ void setup() {
     #endif
 
     pinMode(SWITCH_PIN, INPUT_PULLUP);
-    pinMode(BUTTON_PIN,INPUT_PULLUP);
+    pinMode(BUTTON_PIN, INPUT); //the button already has a pullup resistor. Not sure how much difference this will make. 
 }
 
 void loop() {
@@ -77,7 +77,7 @@ void loop() {
             } else if (buttonActivating) {
                 if (currentMillis - buttonActivationStartTime > buttonActivationDelay && !buttonReady) {
                     buttonReady = true;
-                    buttonActivating = false;   
+                    buttonActivating = false;
                 }
             }
         }
