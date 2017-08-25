@@ -1,4 +1,4 @@
-//#include <Keyboard.h>
+// #include <Keyboard.h>
 
 #ifndef SERIAL
 #define SERIAL TRUE
@@ -11,8 +11,14 @@
 bool prev_deviceSwitch = false;
 bool deviceSwitch = false;
 
+//in order to prevent the event from queueing and firing when the event is detached, adding a switch to control it.
+volatile bool buttonReady = false;
+
 unsigned long switch_lastMillis = 0;
-const long switch_interval = 10000; //check switch every 5 seconds.
+const unsigned long switch_interval = 3000; //check switch every 3 seconds.
+// const unsigned long debounce_interval = 300;
+
+const unsigned long buttonActivationDelay = 100; //delay to allow a call to ISR to clear out queued behavior.
 
 int btn_prevState = HIGH;
 
@@ -20,12 +26,12 @@ const char email[] = "joseph.landy.email@gmail.com";
 
 void setup() {
     #if SERIAL == TRUE
-    Serial.begin(9600);
+    Serial.begin(38400);
     Serial.println("serial activated");
     #endif
 
     pinMode(SWITCH_PIN, INPUT_PULLUP);
-    pinMode(BUTTON_PIN,INPUT_PULLUP);
+    pinMode(BUTTON_PIN, INPUT); //the button already has a pullup resistor. Not sure how much difference this will make.
 }
 
 void loop() {
@@ -43,21 +49,36 @@ void loop() {
             deviceSwitch = false;
             if (deviceSwitch != prev_deviceSwitch) {
                 //device switch is false, so deactivate everything.
-                Keyboard.end();
+                //Keyboard.end();
+                buttonReady = false; //disable everything in the interupt.
+                detachInterrupt(digitalPinToInterrupt(BUTTON_PIN));
                 #if SERIAL == TRUE
                 Serial.println("switch deactivated");
                 #endif
+
             }
         } else { //switchval = LOW.
             #if SERIAL == TRUE
             Serial.println("switchval = LOW");
             #endif
             deviceSwitch = true;
+            static bool buttonActivating = false;
+            static unsigned long buttonActivationStartTime = 0;
             if (deviceSwitch != prev_deviceSwitch) {
-                Keyboard.begin();
+                // Keyboard.begin();
+                // have to wait before flipping button ready.
+                buttonActivating = true;
+                buttonActivationStartTime = currentMillis;
+                // Should be triggered on falling edge.
+                attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), button_interrupt, FALLING);
                 #if SERIAL == TRUE
                 Serial.println("switch activated");
                 #endif
+            } else if (buttonActivating) {
+                if ((currentMillis - buttonActivationStartTime > buttonActivationDelay) && !buttonReady) {
+                    buttonActivating = false;
+                    buttonReady = true;
+                }
             }
         }
         prev_deviceSwitch = deviceSwitch;
@@ -76,11 +97,33 @@ void send_deviceSwitch() {
 #endif
 
 
-unsigned long prevInterruptTime = 0;
+// volatile unsigned long prevInterruptTime = 0;
 /*
 Interupt handler.
+I think what I will need to do is immediately deactivate the ISR, and reactivate it after a hundred millis or so
+in the main loop. that might be problematic.
+
+scratch that, I think the problem might be that I forgot to things as volatile.
+
+The interrupt on that pin may still be queueing though. Yep, interrupt is still queueing.
  */
 void button_interrupt() {
     //millis does not advance in the interupt handler, but should still be able to be called.
+    //have to debounce the input.
+    // unsigned long interruptTime = millis();
+    // if (interruptTime - prevInterruptTime > debounce_interval) {
+    // I will still filter out the queued interrupt.
+    if (buttonReady) {
+        #if SERIAL == TRUE
+        Serial.println("Interupt handler called");
+        Serial.println(email);
+        #endif
+    } else {
+        #if SERIAl == TRUE
+        Serial.println("interrupt handler called, button not ready.");
+        #endif
+    }
 
+        // prevInterruptTime = interruptTime;
+    // }
 }
