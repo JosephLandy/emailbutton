@@ -26,7 +26,7 @@ const char email[] = "joseph.landy.email@gmail.com";
 
 void setup() {
     #if SERIAL == TRUE
-    Serial.begin(9600);
+    Serial.begin(38400);
     Serial.println("serial activated");
     #endif
 
